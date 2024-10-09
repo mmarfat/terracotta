@@ -9,6 +9,7 @@ import logging
 from datetime import datetime, timedelta
 import click
 import tqdm
+import requests
 
 from terracotta.scripts.click_types import RasterPattern, RasterPatternType, PathlibPath, TimeDeltaType
 
@@ -98,7 +99,6 @@ def ingest(
         raster_files = {push_to_last(k, rgb_idx): v for k, v in raster_files.items()}
 
     driver = get_driver(output_file)
-
     if not output_file.is_file():
         driver.create(keys)
 
@@ -132,3 +132,12 @@ def ingest(
         )
         for key, filepath in progress:
             driver.insert(key, filepath, skip_metadata=skip_metadata)
+    
+    try:
+        response = requests.post(
+            "http://localhost:5000/clear_cache", 
+            params={"driver_path": str(output_file)}  # Send the driver path as a query parameter
+        )
+        response.raise_for_status()  # Raise an error for bad responses
+    except requests.exceptions.RequestException as e:
+        print(f"Failed to clear cache: {e}")

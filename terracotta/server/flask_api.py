@@ -5,7 +5,7 @@ from apispec import APISpec
 from apispec.ext.marshmallow import MarshmallowPlugin
 from apispec_webframeworks.flask import FlaskPlugin
 
-from flask import Flask, Blueprint, current_app, send_file, jsonify
+from flask import Flask, Blueprint, current_app, send_file, jsonify, request
 from flask_cors import CORS
 
 import marshmallow
@@ -151,3 +151,27 @@ def create_app(debug: bool = False, profile: bool = False) -> Flask:
     _setup_error_handlers(new_app)
 
     return new_app
+
+@TILE_API.route("/clear_cache", methods=["POST"])
+def clear_cache() -> Any:
+    driver_path = request.args.get("driver_path")
+    if not driver_path:
+        return _abort(400, "Missing 'driver_path' query parameter")
+    
+    try:
+        from terracotta.drivers import get_driver
+        driver = get_driver(driver_path)
+        with driver.connect():
+            pass
+        
+        with driver.raster_store._cache_lock:
+            driver.raster_store._raster_cache.clear()
+        
+        print("Cache cleared successfully", flush=True)
+        return jsonify({"message": "Cache cleared successfully"}), 200
+
+    except Exception as e:
+        print(f"Failed to get driver: {e}", flush=True)
+        return _abort(400, f"Failed to get driver: {e}")
+
+    
